@@ -16,8 +16,23 @@ async function detectDevice(gpuPreference) {
       if (adapter) {
         let gpuName = null
         try {
-          const info = await adapter.requestAdapterInfo()
-          gpuName = info.description || info.device || null
+          // adapter.info is synchronous (Chrome/Edge 121+); fall back to async method
+          const info = adapter.info ?? (await adapter.requestAdapterInfo?.())
+          if (info) {
+            const desc = info.description?.trim()
+            if (desc) {
+              gpuName = desc
+            } else {
+              const vendor = (info.vendor || '').toLowerCase()
+              let v = 'GPU'
+              if (vendor.includes('10de') || vendor === 'nvidia') v = 'NVIDIA'
+              else if (vendor.includes('8086') || vendor === 'intel') v = 'Intel'
+              else if (vendor.includes('1002') || vendor === 'amd') v = 'AMD'
+              else if (vendor) v = vendor
+              const device = info.device?.trim()
+              gpuName = device ? `${v} (${device})` : v
+            }
+          }
         } catch {}
         return { device: 'webgpu', gpuName }
       }
