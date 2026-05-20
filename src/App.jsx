@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Mic, Cpu, Zap } from 'lucide-react'
 import { useWhisper } from './hooks/useWhisper'
 import { InputPanel } from './components/InputPanel'
@@ -6,6 +7,7 @@ import { GPUSelector } from './components/GPUSelector'
 import { ProgressBar } from './components/ProgressBar'
 import { TranscriptViewer } from './components/TranscriptViewer'
 import { ExportBar } from './components/ExportBar'
+import { probeGpuAdapters } from './lib/gpuProbe'
 
 function WebGpuBadge({ device, gpuName }) {
   if (!device) return null
@@ -42,6 +44,11 @@ export default function App() {
   const whisper = useWhisper()
   const isWorking = whisper.status === 'loading-model' || whisper.status === 'transcribing'
   const hasResults = whisper.segments.length > 0
+  const [gpuInfo, setGpuInfo] = useState(null)
+
+  useEffect(() => {
+    probeGpuAdapters().then(setGpuInfo)
+  }, [])
 
   return (
     <div className="min-h-screen">
@@ -108,6 +115,7 @@ export default function App() {
               gpuPreference={whisper.gpuPreference}
               onGpuPreferenceChange={whisper.setGpuPreference}
               disabled={isWorking}
+              gpuInfo={gpuInfo}
             />
           </section>
         )}

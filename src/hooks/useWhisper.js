@@ -12,7 +12,7 @@ const INITIAL_STATE = {
   gpuName: null,
   sourceLanguage: 'auto',
   translateToEnglish: false,
-  gpuPreference: 'auto',
+  gpuPreference: 'high-performance',
   error: null,
 }
 
