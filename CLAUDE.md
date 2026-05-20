@@ -53,6 +53,25 @@ Worker → Main:
 - `{ type: 'done', language: string|null }`
 - `{ type: 'error', message: string }`
 
+### useWhisper state shape
+
+```js
+{
+  status: 'idle'|'loading-model'|'transcribing'|'done'|'error',
+  modelProgress: 0–100,
+  transcriptProgress: 0–100,
+  segments: [{ start, end, text }],
+  detectedLanguage: string|null,
+  device: 'webgpu'|'wasm'|null,
+  gpuName: string|null,          // GPU name shown in header badge
+  sourceLanguage: string,        // 'auto' or ISO code
+  translateToEnglish: boolean,
+  gpuPreference: 'high-performance'|'low-power'|'auto'|'cpu',  // default: 'high-performance'
+  duration: number|null,         // seconds from start() to done, shown on completion
+  error: string|null,
+}
+```
+
 ### Key constraints
 
 **COEP/COOP headers are required.** `vite.config.js` sets `Cross-Origin-Embedder-Policy: credentialless` and `Cross-Origin-Opener-Policy: same-origin` on both dev server and preview. These are needed for WebGPU/SharedArrayBuffer. `credentialless` (not `require-corp`) is used so the model can be fetched from the Hugging Face CDN without CORP headers.
@@ -72,7 +91,11 @@ import WhisperWorker from '../workers/whisper.worker.js?worker'
 - `chunk_callback` was removed in v4 — segments arrive all at once after full inference via `result.chunks`
 - Progress during transcription is indeterminate; `transcript-progress` messages are only emitted in the post-processing loop after inference completes
 
-**GPU selection:** `detectDevice(gpuPreference)` in the worker calls `navigator.gpu.requestAdapter({ powerPreference })` where preference is `'high-performance'` (discrete GPU), `'low-power'` (integrated GPU), or omitted (browser default). GPU name is read via `adapter.requestAdapterInfo()` and shown in the header badge.
+**GPU name detection:** `adapter.info` is a synchronous property added in Chrome/Edge 121+ that replaced the async `requestAdapterInfo()` method (which was removed). Always try `adapter.info` first, fall back to `requestAdapterInfo?.()`. Fields: `description` (full name), `vendor` (company name or hex PCI ID like `0x10de`), `device` (hex device ID). Build a readable name from `description` first, then fall back to mapping vendor IDs (0x10de → NVIDIA, 0x8086 → Intel, 0x1002 → AMD).
+
+**GPU selection limitation:** Chrome/Edge run a single GPU process per session; WebGPU can only use that process's GPU. The `powerPreference` hint in `requestAdapter()` may be ignored. If the probe shows the same GPU for all preferences, show a warning with Windows graphics settings instructions.
+
+**Elapsed time:** `useWhisper` sets `startTimeRef.current = Date.now()` at the top of `start()` and computes `(Date.now() - startTimeRef.current) / 1000` when the `done` message arrives. Stored as `state.duration` (seconds, float). `formatDuration()` in `App.jsx` formats it as `"12.3 s"` or `"1 min 08 s"`.
 
 ### Styling
 
