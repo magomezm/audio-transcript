@@ -53,4 +53,38 @@ describe('InputPanel', () => {
     render(<InputPanel onSource={vi.fn()} disabled={true} />)
     expect(screen.getByPlaceholderText(/https:\/\//i)).toBeDisabled()
   })
+
+  it('does not call onSource when file is dropped on disabled drop-zone', () => {
+    const onSource = vi.fn()
+    render(<InputPanel onSource={onSource} disabled={true} />)
+    const dropZone = screen.getByTestId('drop-zone')
+    const file = new File(['audio data'], 'test.mp3', { type: 'audio/mp3' })
+
+    fireEvent.drop(dropZone, {
+      dataTransfer: { files: [file], types: ['Files'] },
+    })
+
+    expect(onSource).not.toHaveBeenCalled()
+  })
+
+  it('calls onSource with large file after user confirms', async () => {
+    const user = userEvent.setup()
+    const onSource = vi.fn()
+    render(<InputPanel onSource={onSource} disabled={false} />)
+    const dropZone = screen.getByTestId('drop-zone')
+    const bigFile = new File(['x'], 'huge.mp4', { type: 'video/mp4' })
+    Object.defineProperty(bigFile, 'size', { value: 2.1 * 1024 ** 3 })
+
+    fireEvent.drop(dropZone, {
+      dataTransfer: { files: [bigFile], types: ['Files'] },
+    })
+
+    // Warning shown, onSource not called yet
+    expect(screen.getByText(/large file/i)).toBeInTheDocument()
+    expect(onSource).not.toHaveBeenCalled()
+
+    // User confirms
+    await user.click(screen.getByText(/continue anyway/i))
+    expect(onSource).toHaveBeenCalledWith(bigFile)
+  })
 })
