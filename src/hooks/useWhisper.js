@@ -9,8 +9,10 @@ const INITIAL_STATE = {
   segments: [],
   detectedLanguage: null,
   device: null,
+  gpuName: null,
   sourceLanguage: 'auto',
   translateToEnglish: false,
+  gpuPreference: 'auto',
   error: null,
 }
 
@@ -23,9 +25,12 @@ function reducer(state, action) {
         sourceLanguage: state.sourceLanguage,
         translateToEnglish: state.translateToEnglish,
         device: state.device,
+        gpuPreference: state.gpuPreference,
       }
     case 'MODEL_PROGRESS':
       return { ...state, status: 'loading-model', modelProgress: action.value }
+    case 'TRANSCRIBING_START':
+      return { ...state, status: 'transcribing' }
     case 'TRANSCRIPT_PROGRESS':
       return { ...state, transcriptProgress: action.value }
     case 'SEGMENT':
@@ -37,11 +42,13 @@ function reducer(state, action) {
     case 'RESET':
       return { ...INITIAL_STATE }
     case 'DEVICE':
-      return { ...state, device: action.device }
+      return { ...state, device: action.device, gpuName: action.gpuName }
     case 'SET_SOURCE_LANGUAGE':
       return { ...state, sourceLanguage: action.value }
     case 'SET_TRANSLATE':
       return { ...state, translateToEnglish: action.value }
+    case 'SET_GPU_PREFERENCE':
+      return { ...state, gpuPreference: action.value }
     default:
       return state
   }
@@ -72,6 +79,9 @@ export function useWhisper() {
         case 'model-progress':
           dispatch({ type: 'MODEL_PROGRESS', value: msg.value })
           break
+        case 'transcribing-start':
+          dispatch({ type: 'TRANSCRIBING_START' })
+          break
         case 'transcript-progress':
           dispatch({ type: 'TRANSCRIPT_PROGRESS', value: msg.value })
           break
@@ -85,7 +95,7 @@ export function useWhisper() {
           dispatch({ type: 'ERROR', message: msg.message })
           break
         case 'device':
-          dispatch({ type: 'DEVICE', device: msg.device })
+          dispatch({ type: 'DEVICE', device: msg.device, gpuName: msg.gpuName })
           break
       }
     })
@@ -109,6 +119,7 @@ export function useWhisper() {
           audio: transferBuffer,
           language: state.sourceLanguage,
           translate: state.translateToEnglish,
+          gpuPreference: state.gpuPreference,
           duration,
         },
         [transferBuffer]
@@ -120,7 +131,7 @@ export function useWhisper() {
       }
       dispatch({ type: 'ERROR', message: err.message })
     }
-  }, [state.sourceLanguage, state.translateToEnglish])
+  }, [state.sourceLanguage, state.translateToEnglish, state.gpuPreference])
 
   const reset = useCallback(() => {
     if (workerRef.current) {
@@ -138,11 +149,16 @@ export function useWhisper() {
     dispatch({ type: 'SET_TRANSLATE', value })
   }, [])
 
+  const setGpuPreference = useCallback((value) => {
+    dispatch({ type: 'SET_GPU_PREFERENCE', value })
+  }, [])
+
   return {
     ...state,
     start,
     reset,
     setSourceLanguage,
     setTranslateToEnglish,
+    setGpuPreference,
   }
 }

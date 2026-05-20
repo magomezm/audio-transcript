@@ -44,10 +44,11 @@ describe('useWhisper — initial state', () => {
     expect(result.current.error).toBeNull()
   })
 
-  it('exposes setSourceLanguage and setTranslateToEnglish', () => {
+  it('exposes setSourceLanguage, setTranslateToEnglish, and setGpuPreference', () => {
     const { result } = renderHook(() => useWhisper())
     expect(typeof result.current.setSourceLanguage).toBe('function')
     expect(typeof result.current.setTranslateToEnglish).toBe('function')
+    expect(typeof result.current.setGpuPreference).toBe('function')
   })
 })
 
@@ -65,7 +66,28 @@ describe('useWhisper — language state', () => {
   })
 })
 
+describe('useWhisper — GPU preference', () => {
+  it('setGpuPreference updates gpuPreference', () => {
+    const { result } = renderHook(() => useWhisper())
+    act(() => result.current.setGpuPreference('high-performance'))
+    expect(result.current.gpuPreference).toBe('high-performance')
+  })
+})
+
 describe('useWhisper — worker message handling', () => {
+  it('transcribing-start message sets status to transcribing', async () => {
+    const { result } = renderHook(() => useWhisper())
+    const fakeFile = new File(['audio'], 'test.mp3', { type: 'audio/mp3' })
+    act(() => { result.current.start(fakeFile) })
+
+    await vi.waitFor(() => messageHandler !== null)
+
+    act(() => {
+      messageHandler({ data: { type: 'transcribing-start' } })
+    })
+    expect(result.current.status).toBe('transcribing')
+  })
+
   it('model-progress message updates modelProgress', async () => {
     const { result } = renderHook(() => useWhisper())
     const fakeFile = new File(['audio'], 'test.mp3', { type: 'audio/mp3' })

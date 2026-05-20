@@ -2,13 +2,17 @@ import { Mic, Cpu, Zap } from 'lucide-react'
 import { useWhisper } from './hooks/useWhisper'
 import { InputPanel } from './components/InputPanel'
 import { LanguageSelector } from './components/LanguageSelector'
+import { GPUSelector } from './components/GPUSelector'
 import { ProgressBar } from './components/ProgressBar'
 import { TranscriptViewer } from './components/TranscriptViewer'
 import { ExportBar } from './components/ExportBar'
 
-function WebGpuBadge({ device }) {
+function WebGpuBadge({ device, gpuName }) {
   if (!device) return null
   const isGpu = device === 'webgpu'
+  const label = isGpu
+    ? (gpuName ? `WebGPU · ${gpuName}` : 'WebGPU ✓')
+    : 'CPU mode'
   return (
     <span
       style={{
@@ -22,10 +26,14 @@ function WebGpuBadge({ device }) {
         background: isGpu ? 'rgba(124,58,237,0.15)' : 'rgba(245,158,11,0.15)',
         border: `1px solid ${isGpu ? 'rgba(124,58,237,0.4)' : 'rgba(245,158,11,0.4)'}`,
         color: isGpu ? '#a78bfa' : '#fbbf24',
+        maxWidth: '320px',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
       }}
     >
       {isGpu ? <Zap size={12} /> : <Cpu size={12} />}
-      {isGpu ? 'WebGPU ✓' : 'CPU mode'}
+      {label}
     </span>
   )
 }
@@ -56,7 +64,7 @@ export default function App() {
           <Mic size={20} className="text-violet-400" />
           <span className="text-white font-semibold text-lg tracking-tight">AudioScribe</span>
         </div>
-        <WebGpuBadge device={whisper.device} />
+        <WebGpuBadge device={whisper.device} gpuName={whisper.gpuName} />
       </header>
 
       {/* Main content */}
@@ -85,7 +93,7 @@ export default function App() {
           </div>
         )}
 
-        {/* Input + language controls (hidden while working or done) */}
+        {/* Input + language + GPU controls (hidden while working or done) */}
         {(whisper.status === 'idle' || whisper.status === 'error') && (
           <section className="space-y-5">
             <InputPanel onSource={whisper.start} disabled={isWorking} />
@@ -94,6 +102,11 @@ export default function App() {
               translateToEnglish={whisper.translateToEnglish}
               onSourceLanguageChange={whisper.setSourceLanguage}
               onTranslateChange={whisper.setTranslateToEnglish}
+              disabled={isWorking}
+            />
+            <GPUSelector
+              gpuPreference={whisper.gpuPreference}
+              onGpuPreferenceChange={whisper.setGpuPreference}
               disabled={isWorking}
             />
           </section>
@@ -112,7 +125,6 @@ export default function App() {
             <ProgressBar
               status={whisper.status}
               modelProgress={whisper.modelProgress}
-              transcriptProgress={whisper.transcriptProgress}
             />
           </section>
         )}

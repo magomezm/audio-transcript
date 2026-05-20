@@ -5,14 +5,25 @@ env.backends.onnx.wasm.proxy = false
 
 let transcriber = null
 
-async function detectDevice() {
+async function detectDevice(gpuPreference) {
+  if (gpuPreference === 'cpu') return { device: 'wasm', gpuName: null }
   try {
     if (navigator.gpu) {
-      const adapter = await navigator.gpu.requestAdapter()
-      if (adapter) return 'webgpu'
+      const opts = {}
+      if (gpuPreference === 'high-performance') opts.powerPreference = 'high-performance'
+      else if (gpuPreference === 'low-power') opts.powerPreference = 'low-power'
+      const adapter = await navigator.gpu.requestAdapter(opts)
+      if (adapter) {
+        let gpuName = null
+        try {
+          const info = await adapter.requestAdapterInfo()
+          gpuName = info.description || info.device || null
+        } catch {}
+        return { device: 'webgpu', gpuName }
+      }
     }
   } catch {}
-  return 'wasm'
+  return { device: 'wasm', gpuName: null }
 }
 
 async function loadModel(device) {
@@ -38,21 +49,22 @@ async function loadModel(device) {
 }
 
 self.addEventListener('message', async (event) => {
-  const { type, audio, language, translate, duration } = event.data
+  const { type, audio, language, translate, gpuPreference = 'auto' } = event.data
 
   if (type !== 'transcribe') return
 
   try {
     if (!transcriber) {
-      const device = await detectDevice()
-      self.postMessage({ type: 'device', device })
+      const { device, gpuName } = await detectDevice(gpuPreference)
+      self.postMessage({ type: 'device', device, gpuName })
       await loadModel(device)
       self.postMessage({ type: 'model-progress', value: 100 })
     }
 
-    const audioFloat32 = new Float32Array(audio)
+    self.postMessage({ type: 'transcribing-start' })
 
-    // v4 API: pass Float32Array directly (not {array, sampling_rate} which was v3)
+    const audioFloat32 = new Float32Array(audio)
+    // v4 API: pass Float32Array directly (v3 used {array, sampling_rate} object)
     const result = await transcriber(audioFloat32, {
       language: language !== 'auto' ? language : null,
       task: translate ? 'translate' : 'transcribe',
