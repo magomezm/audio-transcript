@@ -42,4 +42,11 @@ describe('segmentsToSrt', () => {
   it('returns empty string for empty segments', () => {
     expect(segmentsToSrt([])).toBe('')
   })
+
+  it('caps milliseconds at 999 to avoid SRT overflow', () => {
+    const seg = [{ start: 0, end: 8.9995, text: 'Edge case.' }]
+    const result = segmentsToSrt(seg)
+    expect(result).toContain('00:00:08,999')
+    expect(result).not.toContain('00:00:08,1000')
+  })
 })
