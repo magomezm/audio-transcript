@@ -13,6 +13,7 @@ const INITIAL_STATE = {
   sourceLanguage: 'auto',
   translateToEnglish: false,
   gpuPreference: 'high-performance',
+  duration: null,
   error: null,
 }
 
@@ -36,7 +37,7 @@ function reducer(state, action) {
     case 'SEGMENT':
       return { ...state, status: 'transcribing', segments: [...state.segments, action.data] }
     case 'DONE':
-      return { ...state, status: 'done', detectedLanguage: action.language, transcriptProgress: 100 }
+      return { ...state, status: 'done', detectedLanguage: action.language, transcriptProgress: 100, duration: action.duration }
     case 'ERROR':
       return { ...state, status: 'error', error: action.message }
     case 'RESET':
@@ -63,9 +64,11 @@ async function fetchUrlAsArrayBuffer(url) {
 export function useWhisper() {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE)
   const workerRef = useRef(null)
+  const startTimeRef = useRef(null)
 
   const start = useCallback(async (source) => {
     dispatch({ type: 'START_LOADING' })
+    startTimeRef.current = Date.now()
 
     // Create worker and register message handler synchronously before any await,
     // so the handler is available immediately after start() is called.
@@ -89,7 +92,11 @@ export function useWhisper() {
           dispatch({ type: 'SEGMENT', data: msg.data })
           break
         case 'done':
-          dispatch({ type: 'DONE', language: msg.language })
+          dispatch({
+            type: 'DONE',
+            language: msg.language,
+            duration: startTimeRef.current ? (Date.now() - startTimeRef.current) / 1000 : null,
+          })
           break
         case 'error':
           dispatch({ type: 'ERROR', message: msg.message })

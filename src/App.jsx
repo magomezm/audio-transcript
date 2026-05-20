@@ -9,6 +9,13 @@ import { TranscriptViewer } from './components/TranscriptViewer'
 import { ExportBar } from './components/ExportBar'
 import { probeGpuAdapters } from './lib/gpuProbe'
 
+function formatDuration(seconds) {
+  if (seconds < 60) return `${seconds.toFixed(1)} s`
+  const m = Math.floor(seconds / 60)
+  const s = (seconds % 60).toFixed(0).padStart(2, '0')
+  return `${m} min ${s} s`
+}
+
 function WebGpuBadge({ device, gpuName }) {
   if (!device) return null
   const isGpu = device === 'webgpu'
@@ -151,6 +158,11 @@ export default function App() {
         {whisper.status === 'done' && hasResults && (
           <section className="space-y-4">
             <ExportBar segments={whisper.segments} />
+            {whisper.duration != null && (
+              <p style={{ fontSize: '12px', color: 'rgba(148,163,184,0.5)', textAlign: 'center' }}>
+                Transcribed in {formatDuration(whisper.duration)}
+              </p>
+            )}
             <button
               onClick={whisper.reset}
               className="text-sm text-slate-500 hover:text-slate-300 transition-colors underline"
