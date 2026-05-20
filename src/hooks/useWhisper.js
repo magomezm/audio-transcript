@@ -114,6 +114,10 @@ export function useWhisper() {
         [transferBuffer]
       )
     } catch (err) {
+      if (workerRef.current) {
+        workerRef.current.terminate()
+        workerRef.current = null
+      }
       dispatch({ type: 'ERROR', message: err.message })
     }
   }, [state.sourceLanguage, state.translateToEnglish])
