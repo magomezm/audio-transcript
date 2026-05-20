@@ -51,45 +51,36 @@ self.addEventListener('message', async (event) => {
     }
 
     const audioFloat32 = new Float32Array(audio)
-    const totalChunks = duration ? Math.max(1, Math.ceil(duration / 25)) : null
-    let chunksProcessed = 0
 
-    const result = await transcriber(
-      { array: audioFloat32, sampling_rate: 16000 },
-      {
-        language: language !== 'auto' ? language : null,
-        task: translate ? 'translate' : 'transcribe',
-        return_timestamps: true,
-        chunk_length_s: 30,
-        stride_length_s: 5,
-        chunk_callback: (chunk) => {
-          if (chunk.text?.trim()) {
-            self.postMessage({
-              type: 'segment',
-              data: {
-                start: chunk.timestamp?.[0] ?? 0,
-                end: chunk.timestamp?.[1] ?? 0,
-                text: chunk.text.trim(),
-              },
-            })
-          }
-          chunksProcessed++
-          if (totalChunks) {
-            self.postMessage({
-              type: 'transcript-progress',
-              value: Math.min(99, Math.round((chunksProcessed / totalChunks) * 100)),
-            })
-          }
-        },
+    // v4 API: pass Float32Array directly (not {array, sampling_rate} which was v3)
+    const result = await transcriber(audioFloat32, {
+      language: language !== 'auto' ? language : null,
+      task: translate ? 'translate' : 'transcribe',
+      return_timestamps: true,
+      chunk_length_s: 30,
+      stride_length_s: 5,
+    })
+
+    // v4 returns all chunks after processing; emit each as a segment
+    const chunks = result?.chunks ?? []
+    chunks.forEach((chunk, i) => {
+      if (chunk.text?.trim()) {
+        self.postMessage({
+          type: 'segment',
+          data: {
+            start: chunk.timestamp?.[0] ?? 0,
+            end: chunk.timestamp?.[1] ?? 0,
+            text: chunk.text.trim(),
+          },
+        })
       }
-    )
+      self.postMessage({
+        type: 'transcript-progress',
+        value: Math.min(99, Math.round(((i + 1) / Math.max(chunks.length, 1)) * 100)),
+      })
+    })
 
-    // Try to extract detected language from result
-    let detectedLanguage = null
-    if (result?.chunks?.[0]?.language) {
-      detectedLanguage = result.chunks[0].language
-    }
-
+    const detectedLanguage = chunks[0]?.language ?? null
     self.postMessage({ type: 'done', language: detectedLanguage })
   } catch (error) {
     self.postMessage({ type: 'error', message: error.message ?? 'Unknown error' })
