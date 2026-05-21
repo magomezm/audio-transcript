@@ -12,6 +12,11 @@ npm run lint     # ESLint
 npm test         # Vitest (run once, no watch)
 ```
 
+To stop the dev server (Windows):
+```bash
+powershell.exe -Command "Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force"
+```
+
 To run a single test file:
 ```bash
 npx vitest run src/lib/exporters.test.js
